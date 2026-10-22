@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment
+.env
+
+# Runtime output
+/audit_log.json
+
+# Editor backup/temp files
+*~RF*.TMP
+
+# OS
+.DS_Store
+
+# Local-only project instructions
+CLAUDE.md

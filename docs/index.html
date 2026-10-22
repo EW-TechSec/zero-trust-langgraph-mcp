@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>zero-trust-langgraph-mcp</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #5a5a5a;
+    --border: #e0e0e0;
+    --card: #f7f7f8;
+    --accent: #1f5eff;
+    --code-bg: #f0f0f2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115;
+      --fg: #e8e8ea;
+      --muted: #a0a0a8;
+      --border: #2a2d34;
+      --card: #171a20;
+      --accent: #6d97ff;
+      --code-bg: #1b1e25;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+  }
+  main {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 20px 80px;
+  }
+  h1 {
+    font-size: 1.9rem;
+    margin-bottom: 4px;
+  }
+  .tagline {
+    color: var(--muted);
+    margin-top: 0;
+    margin-bottom: 32px;
+    font-size: 1.05rem;
+  }
+  h2 {
+    font-size: 1.3rem;
+    margin-top: 48px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+  a { color: var(--accent); }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin: 20px 0;
+  }
+  ul { padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  code {
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.92rem;
+  }
+  th { color: var(--muted); font-weight: 600; }
+  .mermaid { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  footer {
+    margin-top: 60px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>zero-trust-langgraph-mcp</h1>
+  <p class="tagline">A LangGraph agent that runs local network recon tasks through MCP tools, with a zero-trust policy layer sitting between the agent and every tool call. It does not scan or probe real infrastructure: every tool is restricted to localhost, sample data bundled in the repo, or (for ping only) a single published public connectivity-test address.</p>
+
+  <div class="card">
+    <strong>Repository:</strong>
+    <a href="https://github.com/Emmanuel-pro/zero-trust-langgraph-mcp">github.com/Emmanuel-pro/zero-trust-langgraph-mcp</a>
+  </div>
+
+  <h2>What this is</h2>
+  <p>
+    The agent can ping localhost or <code>8.8.8.8</code>, list open ports on localhost with a
+    plain socket scan or with <code>nmap</code>, read the local machine's own listening
+    sockets, parse a bundled sample <code>.pcap</code> file, and read a bundled sample scan
+    report. Port scanning stays localhost-only; the one exception to "no real targets" is ping
+    being allowed to reach <code>8.8.8.8</code>, a connectivity-test address Google publishes
+    for exactly this purpose. The interesting part is not the tools themselves, it is the
+    control layer around them.
+  </p>
+  <p>
+    Every tool call the agent proposes has to pass through an explicit policy node before it
+    can run: a tool allowlist, Pydantic-validated arguments, and a target allowlist. Two tools,
+    the ones that actively probe a target, are marked sensitive, and calling either pauses the
+    graph with a LangGraph interrupt until a human approves or denies it. Every decision,
+    approved or not, is written to a JSON audit log with the prompt, the tool, the arguments,
+    the policy decision, and the result.
+  </p>
+
+  <h2>Graph design</h2>
+  <p>The agent is built as an explicit <code>StateGraph</code> with four nodes and conditional routing, not a single opaque reasoning loop.</p>
+  <pre class="mermaid">
+stateDiagram-v2
+    [*] --> plan
+    plan --> policy_check: tool call proposed
+    plan --> [*]: final answer, no tool needed
+    policy_check --> act: allowed
+    policy_check --> review: denied
+    act --> review
+    review --> plan: continue
+    review --> [*]: done
+  </pre>
+
+  <h2>Security design at a glance</h2>
+  <table>
+    <tr><th>STRIDE category</th><th>Threat at the agent-to-tool boundary</th><th>Mitigation</th></tr>
+    <tr><td>Spoofing</td><td>Agent impersonates a different tool identity</td><td>Tools are resolved by name from a fixed, code-defined dict, not from LLM-supplied metadata</td></tr>
+    <tr><td>Tampering</td><td>LLM supplies a path that escapes the sample data directory</td><td>Resolved-path check in the MCP server rejects anything outside <code>sample_data/</code></td></tr>
+    <tr><td>Repudiation</td><td>No record of what the agent did or why</td><td>Every policy decision and tool result is appended to a JSON audit log</td></tr>
+    <tr><td>Information disclosure</td><td>Agent scans a real external host, or pings something other than localhost or the published public test address</td><td>Separate host allowlists per tool (scan: localhost only; ping: localhost + <code>8.8.8.8</code>), enforced in both the policy layer and the MCP server itself</td></tr>
+    <tr><td>Denial of service</td><td>Unbounded port range or ping count</td><td>Pydantic models cap the range and count before the tool ever runs</td></tr>
+    <tr><td>Elevation of privilege</td><td>A tool call proceeds without review</td><td>Sensitive tools require a human-approved LangGraph interrupt before <code>act</code> is reachable</td></tr>
+  </table>
+  <p>The full threat list lives in the <a href="https://github.com/Emmanuel-pro/zero-trust-langgraph-mcp#security-design">README</a>.</p>
+
+  <h2>A real run</h2>
+  <p>This is an actual terminal session against a local <code>llama3.1:8b</code> model through Ollama, not a mockup.</p>
+  <img src="screenshots/ollama_demo_run.png" alt="Terminal output of a real run: the agent proposes list_open_ports, pauses for approval, then gives a final answer" style="max-width:100%; border-radius: 10px; border: 1px solid var(--border);">
+  <p style="color: var(--muted); font-size: 0.9rem;">Worth noting: the model's final answer mentions <code>nmap</code>, <code>netstat</code>, and <code>lsof</code>, none of which were actually called for this run. The tool boundary was enforced correctly; the model just described the result using generic pentesting vocabulary it wasn't grounded in. See the README's known limitations for more on this.</p>
+
+  <h2>Sample audit log</h2>
+  <p>Illustrative output covering all six tools and every policy outcome: an ordinary read, an approved sensitive scan, a sensitive scan denied by a human reviewer, a non-sensitive tool that needs no approval at all, and a hard denial at the allowlist before anything runs.</p>
+  <pre id="audit-log">loading...</pre>
+
+  <footer>
+    MIT licensed. Built as a portfolio project demonstrating LangGraph, MCP, and zero-trust agent design.
+  </footer>
+</main>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+  fetch('sample_audit_log.json')
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('audit-log').textContent = JSON.stringify(data, null, 2);
+    })
+    .catch(() => {
+      document.getElementById('audit-log').textContent = 'Could not load sample_audit_log.json';
+    });
+</script>
+</body>
+</html>

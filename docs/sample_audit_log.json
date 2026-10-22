@@ -1,0 +1,86 @@
+[
+  {
+    "timestamp": "2026-09-25T02:10:04.118203+00:00",
+    "prompt": "Read the latest scan report and tell me if port 8080 is open.",
+    "tool": "read_scan_report",
+    "arguments": { "filename": "sample_scan_report.json" },
+    "policy_decision": { "allowed": true, "sensitive": false, "reason": "ok" },
+    "result": null
+  },
+  {
+    "timestamp": "2026-09-25T02:10:04.512004+00:00",
+    "prompt": null,
+    "tool": "read_scan_report",
+    "arguments": { "filename": "sample_scan_report.json" },
+    "policy_decision": { "allowed": true, "sensitive": false, "reason": "ok" },
+    "result": "{\"scan_id\": \"demo-scan-0001\", \"open_ports\": [{\"port\": 22, \"service\": \"ssh\", \"state\": \"open\"}, {\"port\": 80, \"service\": \"http\", \"state\": \"open\"}, {\"port\": 443, \"service\": \"https\", \"state\": \"closed\"}, {\"port\": 8080, \"service\": \"http-alt\", \"state\": \"open\"}]}"
+  },
+  {
+    "timestamp": "2026-09-25T02:10:11.881330+00:00",
+    "prompt": "Now actually scan my machine to confirm which ports are open right now.",
+    "tool": "list_open_ports",
+    "arguments": { "host": "127.0.0.1", "start_port": 1, "end_port": 1024 },
+    "policy_decision": { "allowed": true, "sensitive": true, "reason": "ok" },
+    "result": null
+  },
+  {
+    "timestamp": "2026-09-25T02:10:16.902441+00:00",
+    "prompt": null,
+    "tool": "list_open_ports",
+    "arguments": { "host": "127.0.0.1", "start_port": 1, "end_port": 1024 },
+    "policy_decision": { "allowed": true, "sensitive": true, "reason": "ok" },
+    "result": "{\"host\": \"127.0.0.1\", \"open_ports\": [22, 80]}"
+  },
+  {
+    "timestamp": "2026-09-25T02:10:24.331120+00:00",
+    "prompt": "Run a deeper nmap scan of the same range to double check.",
+    "tool": "nmap_scan",
+    "arguments": { "host": "127.0.0.1", "start_port": 1, "end_port": 1024 },
+    "policy_decision": { "allowed": false, "sensitive": true, "reason": "denied by human reviewer" },
+    "result": null
+  },
+  {
+    "timestamp": "2026-09-25T02:10:30.204118+00:00",
+    "prompt": "Never mind nmap, just show me the listening sockets on this machine directly.",
+    "tool": "netstat_status",
+    "arguments": {},
+    "policy_decision": { "allowed": true, "sensitive": false, "reason": "ok" },
+    "result": null
+  },
+  {
+    "timestamp": "2026-09-25T02:10:30.512887+00:00",
+    "prompt": null,
+    "tool": "netstat_status",
+    "arguments": {},
+    "policy_decision": { "allowed": true, "sensitive": false, "reason": "ok" },
+    "result": "State  Recv-Q Send-Q  Local Address:Port  Peer Address:Port\nLISTEN 0      511         127.0.0.1:37269      0.0.0.0:*\nLISTEN 0      4096       127.0.0.54:53         0.0.0.0:*\nLISTEN 0      4096        127.0.0.1:11434      0.0.0.0:*"
+  },
+  {
+    "timestamp": "2026-09-25T02:10:38.011932+00:00",
+    "prompt": "Summarize the sample pcap file too.",
+    "tool": "parse_pcap",
+    "arguments": { "filename": "sample.pcap" },
+    "policy_decision": { "allowed": true, "sensitive": false, "reason": "ok" },
+    "result": null
+  },
+  {
+    "timestamp": "2026-09-25T02:10:38.402215+00:00",
+    "prompt": null,
+    "tool": "parse_pcap",
+    "arguments": { "filename": "sample.pcap" },
+    "policy_decision": { "allowed": true, "sensitive": false, "reason": "ok" },
+    "result": "{\"file\": \"sample.pcap\", \"packet_count\": 9, \"protocol_counts\": {\"TCP\": 5, \"Raw\": 2, \"DNS\": 2}}"
+  },
+  {
+    "timestamp": "2026-09-25T02:10:44.117903+00:00",
+    "prompt": "Now ping 93.184.216.34 to check connectivity to that server.",
+    "tool": "ping_host",
+    "arguments": { "host": "93.184.216.34", "count": 4 },
+    "policy_decision": {
+      "allowed": false,
+      "sensitive": false,
+      "reason": "argument validation failed: Value error, host '93.184.216.34' is not on the allowlist ['127.0.0.1', '8.8.8.8', 'localhost']"
+    },
+    "result": null
+  }
+]

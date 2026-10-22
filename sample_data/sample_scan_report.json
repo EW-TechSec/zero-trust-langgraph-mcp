@@ -1,0 +1,13 @@
+{
+  "scan_id": "demo-scan-0001",
+  "target": "127.0.0.1",
+  "timestamp": "2026-09-20T10:15:00Z",
+  "tool": "nmap (simulated sample data)",
+  "open_ports": [
+    { "port": 22, "service": "ssh", "state": "open" },
+    { "port": 80, "service": "http", "state": "open" },
+    { "port": 443, "service": "https", "state": "closed" },
+    { "port": 8080, "service": "http-alt", "state": "open" }
+  ],
+  "notes": "Sample report bundled for demo purposes only. Not a real scan of a real host."
+}
